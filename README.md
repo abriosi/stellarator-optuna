@@ -63,11 +63,12 @@ python main.py --sampler <sampler_name> --trials <number_of_trials> --seed <rand
 - `--seed`: Seed for reproducibility (optional).
 - `--storage`: Database URL for Optuna storage (optional). Use the format `postgresql://user:password@localhost:5432/optuna`.
 - `--study-name`: Name of the study (required).
+- `--timeout`: Timeout for the optimization in seconds (optional).
 
 #### Example
 
 ```bash
-python main.py --sampler RandomSampler --trials 200 --seed 42 --storage postgresql://user:password@localhost:5432/optuna --study-name my_study
+python main.py --sampler RandomSampler --trials 200 --seed 42 --storage postgresql://user:password@localhost:5432/optuna --study-name my_study --timeout 3600
 ```
 
 ### Accessing the Database with Adminer

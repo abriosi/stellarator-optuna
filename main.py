@@ -35,6 +35,7 @@ def main():
     parser.add_argument("--seed", type=int, default=None, help="Seed for reproducibility.")
     parser.add_argument("--storage", type=str, default=None, help="Database URL for Optuna storage.")
     parser.add_argument("--study-name", type=str, required=True, help="Name of the study.")
+    parser.add_argument("--timeout", type=int, default=None, help="Timeout for the optimization in seconds.")
     args = parser.parse_args()
 
     sampler = create_sampler(args.sampler, args.seed)
@@ -45,7 +46,7 @@ def main():
         storage = None
 
     study = optuna.create_study(study_name=args.study_name, direction="minimize", sampler=sampler, storage=storage)
-    study.optimize(objective, n_trials=args.trials)
+    study.optimize(objective, n_trials=args.trials, timeout=args.timeout)
 
     print("Best value (loss): ", study.best_value)
     print("Best parameters: ", study.best_params)
