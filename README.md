@@ -33,6 +33,8 @@ This will start two services:
 
 ### 3. Install Python Dependencies
 
+[VMEC2000 Python Extension](https://github.com/hiddenSymmetries/VMEC2000?tab=readme-ov-file#python-extension-compiling) is necessary to be installed on your python enviroment. The installation of this extension is outside the scope of this repo  
+
 Install the dependencies using using pip:
 
 ```bash
@@ -56,7 +58,6 @@ python main.py --sampler <sampler_name> --trials <number_of_trials> --seed <rand
   - `TPESampler`
   - `CmaEsSampler`
   - `GPSampler`
-  - `PartialFixedSampler`
   - `NSGAIISampler`
   - `QMCSampler`
 - `--trials`: Number of trials for optimization (default: 100).

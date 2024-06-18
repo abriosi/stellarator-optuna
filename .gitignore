@@ -13,4 +13,5 @@ surf_init.png
 surf_least_squares.png
 surf_optuna.png
 threed1.nfp3_QI
-__pycache__/*
+__pycache__/
+VMEC2000/
