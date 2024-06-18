@@ -42,19 +42,20 @@ def make_plot(vmec, savefig=True, filename_suffix='optuna'):
     else: plt.show()
 
 # Define the objective function
-def objective(trial, vmec, qs, aspect_target=6):
+def objective(trial, vmec, qs, aspect_target=6, min_iota=0.41):
     dofs = [trial.suggest_float(f'{i}', -0.2, 0.2) for i in range(len(vmec.x))]
     vmec.x = dofs
     try:
         loss_qs = qs.total()
         loss_aspect = (vmec.aspect()-aspect_target)**2
+        loss_iota = 50*np.min((np.min(np.abs(vmec.wout.iotaf))-min_iota,0))**2
     except Exception as e:
         # print(f"Trial {trial.number} failed with error: {e}")
         # traceback.print_exc()
         remove_extra_files(vmec)
         return None
     remove_extra_files(vmec)
-    return loss_qs + loss_aspect
+    return loss_qs + loss_aspect + loss_iota
 
 def create_sampler(sampler_name, search_space=None, seed=None):
     if sampler_name == "RandomSampler":
@@ -79,6 +80,7 @@ def create_sampler(sampler_name, search_space=None, seed=None):
 
 def main():
     parser = argparse.ArgumentParser(description="Optuna CLI for hyperparameter optimization.")
+    parser.add_argument("--min_iota", type=float, default=0.41, help="Minimum rotational transform of the stellarator.")
     parser.add_argument("--max_mode", type=int, default=1, help="Plasma boundary maximum mode.")
     parser.add_argument("--aspect", type=float, default=6, help="Plasma boundary aspect ratio.")
     parser.add_argument("--sampler", type=str, required=True, help="Sampler to use for optimization.")
@@ -97,11 +99,12 @@ def main():
         storage = None
         
     vmec = Vmec('input.nfp4_QH', verbose=False)
-    surf = vmec.boundary;surf.fix_all()
+    surf = vmec.boundary;surf.fix_all();vmec.run()
     surf.fixed_range(mmin=0, mmax=args.max_mode, nmin=-args.max_mode, nmax=args.max_mode, fixed=False);surf.fix("rc(0,0)")
     qs = QuasisymmetryRatioResidual(vmec, np.linspace(0,1,5,endpoint=True), helicity_n=-1, helicity_m=1)
 
     print(f'Initial parameters: {vmec.x}')
+    print(f'Initial min_iota: {np.min(np.abs(vmec.wout.iotaf))}')
     print(f'Initial aspect ratio: {vmec.aspect()}')
     print(f'Initial quasisymmetry residual: {qs.total()}')
     make_plot(vmec, savefig=True, filename_suffix='init')
@@ -112,11 +115,12 @@ def main():
         vmec.x = x
         loss_qs = qs.total()
         loss_aspect = (vmec.aspect()-args.aspect)**2
-        return loss_qs, loss_aspect
+        loss_iota = np.sqrt(50)*np.min((np.min(np.abs(vmec.wout.iotaf))-args.min_iota,0))
+        return loss_qs, loss_aspect, loss_iota
     res = least_squares(fun, vmec.x, bounds=([-0.2]*len(vmec.x), [0.2]*len(vmec.x)), verbose=2, max_nfev=60)
     
     study = optuna.create_study(study_name=args.study_name, direction="minimize", sampler=sampler, storage=storage, load_if_exists=True)
-    study.optimize(lambda trial: objective(trial, vmec, qs, args.aspect), n_trials=args.trials, timeout=args.timeout)
+    study.optimize(lambda trial: objective(trial, vmec, qs, args.aspect, args.min_iota), n_trials=args.trials, timeout=args.timeout)
 
     # print("Best value (loss): ", study.best_value)
     # print("Best parameters: ", study.best_params)
@@ -124,6 +128,7 @@ def main():
     # Least Squares Result
     vmec.x = res.x
     print(f'Least squares parameters: {res.x}')
+    print(f'Least squares min_iota: {np.min(np.abs(vmec.wout.iotaf))}')
     print(f'Least squares aspect ratio: {vmec.aspect()}')
     print(f'Least squares quasisymmetry residual: {qs.total()}')
     make_plot(vmec, savefig=True, filename_suffix='least_squares')
@@ -131,6 +136,7 @@ def main():
     # Optuna Result
     vmec.x = [study.best_params[f'{i}'] for i in range(len(vmec.x))]
     print(f'Optuna optimization parameters: {vmec.x}')
+    print(f'Optuna optimization min_iota: {np.min(np.abs(vmec.wout.iotaf))}')
     print(f'Optuna optimization aspect ratio: {vmec.aspect()}')
     print(f'Optuna optimization quasisymmetry residual: {qs.total()}')
     make_plot(vmec, savefig=True, filename_suffix='optuna')
