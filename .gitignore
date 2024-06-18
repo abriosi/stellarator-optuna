@@ -6,3 +6,9 @@ threed1.nfp4_QH
 fort.9
 surf_opt.png
 input.nfp4_QH_opt
+input.nfp4_QH_init
+input.nfp4_QH_least_squares
+input.nfp4_QH_optuna
+surf_init.png
+surf_least_squares.png
+surf_optuna.png
