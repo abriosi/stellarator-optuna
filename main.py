@@ -45,7 +45,7 @@ def main():
     else:
         storage = None
 
-    study = optuna.create_study(study_name=args.study_name, direction="minimize", sampler=sampler, storage=storage)
+    study = optuna.create_study(study_name=args.study_name, direction="minimize", sampler=sampler, storage=storage, load_if_exists=True)
     study.optimize(objective, n_trials=args.trials, timeout=args.timeout)
 
     print("Best value (loss): ", study.best_value)
