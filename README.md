@@ -15,7 +15,7 @@ This project provides a command-line interface (CLI) for running hyperparameter 
 Clone this repository to your local machine:
 
 ```bash
-git clone https://github.com/abriosi/stellarator-optuna
+git clone git@github.com:abriosi/stellarator-optuna.git
 cd stellarator-optuna
 ```
 
