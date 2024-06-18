@@ -5,9 +5,11 @@ import os
 import traceback
 import numpy as np
 from matplotlib import cm
+from functools import partial
 import matplotlib.pyplot as plt
 from simsopt.mhd import Vmec, QuasisymmetryRatioResidual
 from simsopt.geo import SurfaceRZFourier
+from qi_functions import QuasiIsodynamicResidual, MirrorRatioPen, MaxElongationPen
 
 def remove_extra_files(vmec):
     try: os.remove(vmec.output_file)
@@ -42,11 +44,14 @@ def make_plot(vmec, savefig=True, filename_suffix='optuna'):
     else: plt.show()
 
 # Define the objective function
-def objective(trial, vmec, qs, aspect_target=6, min_iota=0.41):
-    dofs = [trial.suggest_float(f'{i}', -0.2, 0.2) for i in range(len(vmec.x))]
+def objective(trial, vmec, qs, aspect_target, min_iota, qi, elongation, mirror, quasisymmetry):
+    dofs = [trial.suggest_float(f'{i}', -0.4, 0.4) for i in range(len(vmec.x))]
     vmec.x = dofs
     try:
-        loss_qs = qs.total()
+        if quasisymmetry:
+            loss_confinement = qs.total()
+        else:
+            loss_confinement = np.abs(qi(vmec)) + np.abs(elongation(vmec)) + np.abs(mirror(vmec))
         loss_aspect = (vmec.aspect()-aspect_target)**2
         loss_iota = 50*np.min((np.min(np.abs(vmec.wout.iotaf))-min_iota,0))**2
     except Exception as e:
@@ -55,7 +60,7 @@ def objective(trial, vmec, qs, aspect_target=6, min_iota=0.41):
         remove_extra_files(vmec)
         return None
     remove_extra_files(vmec)
-    return loss_qs + loss_aspect + loss_iota
+    return loss_confinement + loss_aspect + loss_iota
 
 def create_sampler(sampler_name, search_space=None, seed=None):
     if sampler_name == "RandomSampler":
@@ -80,11 +85,13 @@ def create_sampler(sampler_name, search_space=None, seed=None):
 
 def main():
     parser = argparse.ArgumentParser(description="Optuna CLI for hyperparameter optimization.")
+    parser.add_argument("--QA_QH_QI", type=str, default='QH', help="Select to optimize QA, QH or QI.")
     parser.add_argument("--min_iota", type=float, default=0.41, help="Minimum rotational transform of the stellarator.")
     parser.add_argument("--max_mode", type=int, default=1, help="Plasma boundary maximum mode.")
+    parser.add_argument("--max_nfev", type=int, default=20, help="Number of iterations for the least squares.")
     parser.add_argument("--aspect", type=float, default=6, help="Plasma boundary aspect ratio.")
     parser.add_argument("--sampler", type=str, required=True, help="Sampler to use for optimization.")
-    parser.add_argument("--trials", type=int, default=100, help="Number of trials for optimization.")
+    parser.add_argument("--trials", type=int, default=300, help="Number of trials for optimization.")
     parser.add_argument("--seed", type=int, default=None, help="Seed for reproducibility.")
     parser.add_argument("--storage", type=str, default=None, help="Database URL for Optuna storage.")
     parser.add_argument("--study-name", type=str, required=True, help="Name of the study.")
@@ -97,30 +104,58 @@ def main():
         storage = optuna.storages.RDBStorage(args.storage)
     else:
         storage = None
-        
-    vmec = Vmec('input.nfp4_QH', verbose=False)
+    
+    if args.QA_QH_QI == 'QH':
+        quasisymmetry = True
+        helicity_n = -1
+        vmec_input = 'input.nfp4_QH'
+    elif args.QA_QH_QI == 'QA':
+        quasisymmetry = True
+        helicity_n = 0
+        vmec_input = 'input.nfp2_QA'
+    elif args.QA_QH_QI == 'QI':
+        helicity_n = 1
+        quasisymmetry = False
+        vmec_input = 'input.nfp3_QI'
+    vmec = Vmec(vmec_input, verbose=False)
     surf = vmec.boundary;surf.fix_all();vmec.run()
     surf.fixed_range(mmin=0, mmax=args.max_mode, nmin=-args.max_mode, nmax=args.max_mode, fixed=False);surf.fix("rc(0,0)")
-    qs = QuasisymmetryRatioResidual(vmec, np.linspace(0,1,5,endpoint=True), helicity_n=-1, helicity_m=1)
+    qs         = QuasisymmetryRatioResidual(vmec, np.linspace(0,1,5,endpoint=True), helicity_n=helicity_n, helicity_m=1)
+    qi         = partial(QuasiIsodynamicResidual,snorms=[1/16, 5/16, 9/16, 13/16], nphi=151, nalpha=51, nBj=71, mpol=21, ntor=21, nphi_out=200, arr_out=True)
+    elongation = partial(MaxElongationPen,t=6)
+    mirror     = partial(MirrorRatioPen,t=0.20)
 
     print(f'Initial parameters: {vmec.x}')
     print(f'Initial min_iota: {np.min(np.abs(vmec.wout.iotaf))}')
     print(f'Initial aspect ratio: {vmec.aspect()}')
-    print(f'Initial quasisymmetry residual: {qs.total()}')
+    if quasisymmetry:
+        print(f'Initial quasisymmetry residual: {qs.total()}')
+    else:
+        print(f'Initial quasiisodynamic residual: {qi(vmec)}')
+        print(f'Initial elongation penalty: {elongation(vmec)}')
+        print(f'Initial mirror penalty: {mirror(vmec)}')
     make_plot(vmec, savefig=True, filename_suffix='init')
     
     # comparison with a least squares model
     from scipy.optimize import least_squares
     def fun(x):
         vmec.x = x
-        loss_qs = qs.total()
-        loss_aspect = (vmec.aspect()-args.aspect)**2
-        loss_iota = np.sqrt(50)*np.min((np.min(np.abs(vmec.wout.iotaf))-args.min_iota,0))
-        return loss_qs, loss_aspect, loss_iota
-    res = least_squares(fun, vmec.x, bounds=([-0.2]*len(vmec.x), [0.2]*len(vmec.x)), verbose=2, max_nfev=60)
+        try:
+            loss_aspect = (vmec.aspect()-args.aspect)
+            loss_iota = np.sqrt(50)*np.min((np.min(np.abs(vmec.wout.iotaf))-args.min_iota,0))
+            if quasisymmetry:
+                loss_confinement = np.sqrt(qs.total())
+            else:
+                loss_confinement = np.sqrt(np.sum(np.abs(qi(vmec))) + np.abs(elongation(vmec)) + np.abs(mirror(vmec)))
+        except Exception as e:
+            remove_extra_files(vmec)
+            return np.inf
+        remove_extra_files(vmec)
+        return loss_confinement, loss_aspect, loss_iota
+    res = least_squares(fun, vmec.x, bounds=([-0.4]*len(vmec.x), [0.4]*len(vmec.x)), verbose=2, max_nfev=args.max_nfev)
     
     study = optuna.create_study(study_name=args.study_name, direction="minimize", sampler=sampler, storage=storage, load_if_exists=True)
-    study.optimize(lambda trial: objective(trial, vmec, qs, args.aspect, args.min_iota), n_trials=args.trials, timeout=args.timeout)
+    study.optimize(lambda trial: objective(trial, vmec, qs, args.aspect, args.min_iota, qi, elongation, mirror, quasisymmetry), n_trials=args.trials, timeout=args.timeout)
 
     # print("Best value (loss): ", study.best_value)
     # print("Best parameters: ", study.best_params)
@@ -130,7 +165,12 @@ def main():
     print(f'Least squares parameters: {res.x}')
     print(f'Least squares min_iota: {np.min(np.abs(vmec.wout.iotaf))}')
     print(f'Least squares aspect ratio: {vmec.aspect()}')
-    print(f'Least squares quasisymmetry residual: {qs.total()}')
+    if quasisymmetry:
+        print(f'Least squares quasisymmetry residual: {qs.total()}')
+    else:
+        print(f'Least squares quasiisodynamic residual: {qi(vmec)}')
+        print(f'Least squares elongation penalty: {elongation(vmec)}')
+        print(f'Least squares mirror penalty: {mirror(vmec)}')
     make_plot(vmec, savefig=True, filename_suffix='least_squares')
     
     # Optuna Result
@@ -138,7 +178,12 @@ def main():
     print(f'Optuna optimization parameters: {vmec.x}')
     print(f'Optuna optimization min_iota: {np.min(np.abs(vmec.wout.iotaf))}')
     print(f'Optuna optimization aspect ratio: {vmec.aspect()}')
-    print(f'Optuna optimization quasisymmetry residual: {qs.total()}')
+    if quasisymmetry:
+        print(f'Optuna optimization quasisymmetry residual: {qs.total()}')
+    else:
+        print(f'Optuna optimization quasiisodynamic residual: {qi(vmec)}')
+        print(f'Optuna optimization elongation penalty: {elongation(vmec)}')
+        print(f'Optuna optimization mirror penalty: {mirror(vmec)}')
     make_plot(vmec, savefig=True, filename_suffix='optuna')
     
 
