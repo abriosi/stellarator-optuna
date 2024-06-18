@@ -12,3 +12,5 @@ input.nfp4_QH_optuna
 surf_init.png
 surf_least_squares.png
 surf_optuna.png
+threed1.nfp3_QI
+__pycache__/*

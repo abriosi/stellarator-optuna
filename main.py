@@ -24,8 +24,8 @@ def make_plot(vmec, savefig=True, filename_suffix='optuna'):
     phi = np.linspace(0,1,num=nphi)
     B = np.zeros((ntheta,nphi))
     
-    vmec.run();vmec.write_input(f'input.nfp4_QH_{filename_suffix}'); remove_extra_files(vmec)
-    surf_opt = SurfaceRZFourier.from_vmec_input(f'input.nfp4_QH_{filename_suffix}', quadpoints_phi=phi, quadpoints_theta=theta)
+    vmec.run();vmec.write_input(f'{vmec.input_file}_{filename_suffix}'); remove_extra_files(vmec)
+    surf_opt = SurfaceRZFourier.from_vmec_input(f'{vmec.input_file}_{filename_suffix}', quadpoints_phi=phi, quadpoints_theta=theta)
     XYZ = surf_opt.gamma()
     
     phi2D,theta2D = np.meshgrid(2*np.pi*phi,2*np.pi*theta)
@@ -40,12 +40,12 @@ def make_plot(vmec, savefig=True, filename_suffix='optuna'):
     ax.auto_scale_xyz([0.6*XYZ.min(), 0.6*XYZ.max()], [0.6*XYZ.min(), 0.6*XYZ.max()], [0.6*XYZ.min(), 0.6*XYZ.max()])
     ax.set_box_aspect([1, 1, 1])
     ax.axis('off')
-    if savefig: plt.savefig(f'surf_{filename_suffix}.png', bbox_inches = 'tight', pad_inches = 0, dpi=300)
+    if savefig: plt.savefig(f'surf_{vmec.input_file}_{filename_suffix}.png', bbox_inches = 'tight', pad_inches = 0, dpi=300)
     else: plt.show()
 
 # Define the objective function
-def objective(trial, vmec, qs, aspect_target, min_iota, qi, elongation, mirror, quasisymmetry):
-    dofs = [trial.suggest_float(f'{i}', -0.4, 0.4) for i in range(len(vmec.x))]
+def objective(trial, vmec, qs, aspect_target, min_iota, qi, elongation, mirror, quasisymmetry, max_bounds=0.15):
+    dofs = [trial.suggest_float(f'{i}', -max_bounds, max_bounds) for i in range(len(vmec.x))]
     vmec.x = dofs
     try:
         if quasisymmetry:
@@ -88,10 +88,10 @@ def main():
     parser.add_argument("--QA_QH_QI", type=str, default='QH', help="Select to optimize QA, QH or QI.")
     parser.add_argument("--min_iota", type=float, default=0.41, help="Minimum rotational transform of the stellarator.")
     parser.add_argument("--max_mode", type=int, default=1, help="Plasma boundary maximum mode.")
-    parser.add_argument("--max_nfev", type=int, default=20, help="Number of iterations for the least squares.")
+    parser.add_argument("--max_nfev", type=int, default=10, help="Number of iterations for the least squares.")
     parser.add_argument("--aspect", type=float, default=6, help="Plasma boundary aspect ratio.")
     parser.add_argument("--sampler", type=str, required=True, help="Sampler to use for optimization.")
-    parser.add_argument("--trials", type=int, default=300, help="Number of trials for optimization.")
+    parser.add_argument("--trials", type=int, default=200, help="Number of trials for optimization.")
     parser.add_argument("--seed", type=int, default=None, help="Seed for reproducibility.")
     parser.add_argument("--storage", type=str, default=None, help="Database URL for Optuna storage.")
     parser.add_argument("--study-name", type=str, required=True, help="Name of the study.")
@@ -109,14 +109,17 @@ def main():
         quasisymmetry = True
         helicity_n = -1
         vmec_input = 'input.nfp4_QH'
+        max_bounds = 0.2
     elif args.QA_QH_QI == 'QA':
         quasisymmetry = True
         helicity_n = 0
         vmec_input = 'input.nfp2_QA'
+        max_bounds = 0.2
     elif args.QA_QH_QI == 'QI':
         helicity_n = 1
         quasisymmetry = False
         vmec_input = 'input.nfp3_QI'
+        max_bounds = 0.4
     vmec = Vmec(vmec_input, verbose=False)
     surf = vmec.boundary;surf.fix_all();vmec.run()
     surf.fixed_range(mmin=0, mmax=args.max_mode, nmin=-args.max_mode, nmax=args.max_mode, fixed=False);surf.fix("rc(0,0)")
@@ -152,10 +155,10 @@ def main():
             return np.inf
         remove_extra_files(vmec)
         return loss_confinement, loss_aspect, loss_iota
-    res = least_squares(fun, vmec.x, bounds=([-0.4]*len(vmec.x), [0.4]*len(vmec.x)), verbose=2, max_nfev=args.max_nfev)
+    res = least_squares(fun, vmec.x, bounds=([-max_bounds]*len(vmec.x), [max_bounds]*len(vmec.x)), verbose=2, max_nfev=args.max_nfev)
     
     study = optuna.create_study(study_name=args.study_name, direction="minimize", sampler=sampler, storage=storage, load_if_exists=True)
-    study.optimize(lambda trial: objective(trial, vmec, qs, args.aspect, args.min_iota, qi, elongation, mirror, quasisymmetry), n_trials=args.trials, timeout=args.timeout)
+    study.optimize(lambda trial: objective(trial, vmec, qs, args.aspect, args.min_iota, qi, elongation, mirror, quasisymmetry, max_bounds), n_trials=args.trials, timeout=args.timeout)
 
     # print("Best value (loss): ", study.best_value)
     # print("Best parameters: ", study.best_params)
