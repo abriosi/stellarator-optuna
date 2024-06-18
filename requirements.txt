@@ -1,0 +1,5 @@
+cmaes==0.10.0
+optuna==3.6.1
+torch==2.3.1
+scipy==1.13.1
+psycopg2==2.9.9
