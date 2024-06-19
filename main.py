@@ -42,20 +42,23 @@ def main():
         quasisymmetry = False
         vmec_input = 'input.nfp3_QI'
         max_bounds = 0.4
+        
+    vmec, qs, qi, elongation, mirror = setup_vmec(vmec_input, args.max_mode, helicity_n)
 
     study = optuna.create_study(study_name=args.study_name, direction="minimize", sampler=sampler, storage=storage, load_if_exists=True)
-    study.optimize(lambda trial: objective(trial, vmec_input, args.max_mode, helicity_n, quasisymmetry, args.aspect, args.min_iota, max_bounds), 
+    study.optimize(lambda trial: objective(trial, vmec, qs, qi, elongation, mirror, quasisymmetry, args.aspect, args.min_iota, max_bounds), 
                    n_trials=args.trials, timeout=args.timeout)
 
     vmec, qs, qi, elongation, mirror = setup_vmec(vmec_input, args.max_mode, helicity_n)
-
+    
+    vmec.run()
     print(f'Initial parameters: {vmec.x}')
     print(f'Initial min_iota: {np.min(np.abs(vmec.wout.iotaf))}')
     print(f'Initial aspect ratio: {vmec.aspect()}')
     if quasisymmetry:
         print(f'Initial quasisymmetry residual: {qs.total()}')
     else:
-        print(f'Initial quasiisodynamic residual: {qi(vmec)}')
+        print(f'Initial quasiisodynamic residual: {np.sum(np.abs(qi(vmec)))}')
         print(f'Initial elongation penalty: {elongation(vmec)}')
         print(f'Initial mirror penalty: {mirror(vmec)}')
     make_plot(vmec, savefig=True, filename_suffix='init')
@@ -68,7 +71,7 @@ def main():
     if quasisymmetry:
         print(f'Optuna optimization quasisymmetry residual: {qs.total()}')
     else:
-        print(f'Optuna optimization quasiisodynamic residual: {qi(vmec)}')
+        print(f'Optuna optimization quasiisodynamic residual: {np.sum(np.abs(qi(vmec)))}')
         print(f'Optuna optimization elongation penalty: {elongation(vmec)}')
         print(f'Optuna optimization mirror penalty: {mirror(vmec)}')
     make_plot(vmec, savefig=True, filename_suffix='optuna')

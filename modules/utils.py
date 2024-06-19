@@ -37,7 +37,7 @@ def make_plot(vmec, savefig=True, filename_suffix='optuna'):
     fig = plt.figure(figsize=(6, 4))
     ax = fig.add_subplot(111, projection='3d')
     ax.plot_surface(XYZ[:, :, 0], XYZ[:, :, 1], XYZ[:, :, 2], facecolors=cm.jet(np.transpose(B_rescaled)), rstride=1, cstride=1, antialiased=False)
-    ax.auto_scale_xyz([0.6 * XYZ.min(), 0.6 * XYZ.max()], [0.6 * XYZ.min(), 0.6 * XYZ.max()], [0.6 * XYZ.min(), 0.6 * XYZ.max()])
+    ax.auto_scale_xyz([0.7 * XYZ.min(), 0.7 * XYZ.max()], [0.7 * XYZ.min(), 0.7 * XYZ.max()], [0.7 * XYZ.min(), 0.7 * XYZ.max()])
     ax.set_box_aspect([1, 1, 1])
     ax.axis('off')
     if savefig:
