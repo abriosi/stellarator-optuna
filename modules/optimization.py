@@ -26,7 +26,7 @@ def objective(trial, vmec_input, max_mode, helicity_n, quasisymmetry, aspect_tar
         # print(f"Trial {trial.number} failed with error: {e}")
         # traceback.print_exc()
         if isinstance(trial, np.ndarray):
-            return np.inf
+            return 1e6
         else:
             return None
     finally:
@@ -35,4 +35,4 @@ def objective(trial, vmec_input, max_mode, helicity_n, quasisymmetry, aspect_tar
     if isinstance(trial, np.ndarray):
         return np.array([loss_confinement, loss_aspect, loss_iota])
     else:
-        return np.log(loss_confinement + loss_aspect + loss_iota)
+        return loss_confinement + loss_aspect + loss_iota
