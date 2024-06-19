@@ -3,9 +3,9 @@ import traceback
 from .utils import remove_extra_files
 from .create_vmec import setup_vmec
 
-def objective(trial, vmec, qs, qi, elongation, mirror, quasisymmetry, aspect_target, min_iota, max_bounds=0.15):
+def objective(trial, vmec_input, max_mode, helicity_n, quasisymmetry, aspect_target, min_iota, max_bounds=0.15):
 
-    # vmec, qs, qi, elongation, mirror = setup_vmec(vmec_input, max_mode, helicity_n)
+    vmec, qs, qi, elongation, mirror = setup_vmec(vmec_input, max_mode, helicity_n)
 
     # Check if optimizing with least squares (array input) or with optuna (trial input)
     if isinstance(trial, np.ndarray):

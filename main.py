@@ -41,12 +41,12 @@ def main():
         helicity_n = 1
         quasisymmetry = False
         vmec_input = 'input.nfp3_QI'
-        max_bounds = 0.4
+        max_bounds = 0.6
         
     vmec, qs, qi, elongation, mirror = setup_vmec(vmec_input, args.max_mode, helicity_n)
 
     study = optuna.create_study(study_name=args.study_name, direction="minimize", sampler=sampler, storage=storage, load_if_exists=True)
-    study.optimize(lambda trial: objective(trial, vmec, qs, qi, elongation, mirror, quasisymmetry, args.aspect, args.min_iota, max_bounds), 
+    study.optimize(lambda trial: objective(trial, vmec_input, args.max_mode, helicity_n, quasisymmetry, args.aspect, args.min_iota, max_bounds),
                    n_trials=args.trials, timeout=args.timeout)
 
     vmec, qs, qi, elongation, mirror = setup_vmec(vmec_input, args.max_mode, helicity_n)

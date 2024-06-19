@@ -30,11 +30,11 @@ def main():
         helicity_n = 1
         quasisymmetry = False
         vmec_input = 'input.nfp3_QI'
-        max_bounds = 0.4
-
-    vmec, qs, qi, elongation, mirror = setup_vmec(vmec_input, args.max_mode, helicity_n)
+        max_bounds = 0.6
     
-    res = least_squares(objective, vmec.x, args=(vmec, qs, qi, elongation, mirror, quasisymmetry, args.aspect, args.min_iota, max_bounds),
+    vmec, qs, qi, elongation, mirror = setup_vmec(vmec_input, args.max_mode, helicity_n)
+
+    res = least_squares(objective, vmec.x, args=(vmec_input, args.max_mode, helicity_n, quasisymmetry, args.aspect, args.min_iota, max_bounds),
                         bounds=([-max_bounds]*len(vmec.x), [max_bounds]*len(vmec.x)), verbose=2, max_nfev=args.trials)
 
     vmec, qs, qi, elongation, mirror = setup_vmec(vmec_input, args.max_mode, helicity_n)
