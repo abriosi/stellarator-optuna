@@ -11,7 +11,6 @@ def main():
     parser.add_argument("--QA_QH_QI", type=str, default='QH', help="Select to optimize QA, QH or QI.")
     parser.add_argument("--min_iota", type=float, default=0.41, help="Minimum rotational transform of the stellarator.")
     parser.add_argument("--max_mode", type=int, default=1, help="Plasma boundary maximum mode.")
-    parser.add_argument("--max_nfev", type=int, default=10, help="Number of iterations for the least squares.")
     parser.add_argument("--aspect", type=float, default=6, help="Plasma boundary aspect ratio.")
     parser.add_argument("--sampler", type=str, required=True, help="Sampler to use for optimization.")
     parser.add_argument("--trials", type=int, default=200, help="Number of trials for optimization.")

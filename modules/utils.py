@@ -51,7 +51,7 @@ def create_sampler(sampler_name, seed=None):
     elif sampler_name == "TPESampler":
         return optuna.samplers.TPESampler(seed=seed)
     elif sampler_name == "CmaEsSampler":
-        return optuna.samplers.CmaEsSampler(seed=seed)
+        return optuna.samplers.CmaEsSampler(seed=seed, restart_strategy="ipop", inc_popsize=2)
     elif sampler_name == "GPSampler":
         return optuna.samplers.GPSampler(seed=seed)
     elif sampler_name == "NSGAIISampler":
