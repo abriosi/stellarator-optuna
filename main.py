@@ -18,7 +18,6 @@ def main():
     parser.add_argument("--storage", type=str, default=None, help="Database URL for Optuna storage.")
     parser.add_argument("--study-name", type=str, required=True, help="Name of the study.")
     parser.add_argument("--timeout", type=int, default=None, help="Timeout for the optimization in seconds.")
-    parser.add_argument("--njobs", type=int, default=1, help="The number of parallel jobs")
     args = parser.parse_args()
 
     sampler = create_sampler(args.sampler, args.seed)
@@ -48,7 +47,7 @@ def main():
 
     study = optuna.create_study(study_name=args.study_name, direction="minimize", sampler=sampler, storage=storage, load_if_exists=True)
     study.optimize(lambda trial: objective(trial, vmec_input, args.max_mode, helicity_n, quasisymmetry, args.aspect, args.min_iota, max_bounds),
-                   n_trials=args.trials, timeout=args.timeout, n_jobs=args.njobs)
+                   n_trials=args.trials, timeout=args.timeout)
 
     vmec, qs, qi, elongation, mirror = setup_vmec(vmec_input, args.max_mode, helicity_n)
     
